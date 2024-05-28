@@ -40,7 +40,7 @@ kafka-clients-[version].jar
 
 - kafka-clients: https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
 
-### Copy JAR Files to the Virtual Environment:
+### Move JAR Files to the Virtual Environment:
 
 - **macOS/Linux:**
 
@@ -56,7 +56,7 @@ kafka-clients-[version].jar
   move path/to/kafka-clients-[version].jar .venv\Lib\site-packages\pyflink\lib\
   ```
 
-- **Directory Structure**
+- **Final Directory Structure**
   ```bash
   project/
   │
