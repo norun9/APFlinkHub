@@ -2,8 +2,8 @@ from pyflink.common.serialization import SimpleStringSchema
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
 from pyflink.common.typeinfo import Types
-from pyflink.datastream.window import SlidingProcessingTimeWindows
-from pyflink.datastream.functions import AggregateFunction
+from pyflink.datastream.window import SlidingEventTimeWindows
+from pyflink.datastream.functions import AggregateFunction, ProcessAllWindowFunction
 from pyflink.common.time import Time
 import re
 
@@ -19,6 +19,7 @@ class MyAggregateFunction(AggregateFunction):
         }
 
     def add(self, value, accumulator):
+        print(value)
         v = float(value)
         accumulator['count'] += 1
         accumulator['sum'] += v
@@ -60,14 +61,6 @@ def extract_entity_sensor_data_type(topic):
 
 env = StreamExecutionEnvironment.get_execution_environment()
 
-topics = [
-    'i483-sensors-s2410014-BMP180-temperature',
-    'i483-sensors-s2410014-BMP180-air_pressure',
-    'i483-sensors-s2410014-SCD41-temperature',
-    'i483-sensors-s2410014-SCD41-co2',
-    'i483-sensors-s2410014-SCD41-humidity'
-]
-
 
 def create_kafka_producer(topic):
     return FlinkKafkaProducer(
@@ -77,7 +70,25 @@ def create_kafka_producer(topic):
     )
 
 
+def try_parse_float(value):
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+topics = [
+    'i483-sensors-s2410014-BMP180-temperature',
+    'i483-sensors-s2410014-BMP180-air_pressure',
+    'i483-sensors-s2410014-SCD41-temperature',
+    'i483-sensors-s2410014-SCD41-co2',
+    'i483-sensors-s2410014-SCD41-humidity',
+    'i483-sensors-team2-RPR0521RS-ambient_illumination',
+]
+
+
 for topic in topics:
+    # 返却されるデータにトピックの情報が存在しないのでトピック毎にコンシューマーを作成する
     kafka_consumer = FlinkKafkaConsumer(
         topics=topic,
         deserialization_schema=SimpleStringSchema(),
@@ -91,11 +102,13 @@ for topic in topics:
 
     data_stream = env.add_source(kafka_consumer)
 
-    float_stream = data_stream.map(lambda value: float(value), output_type=Types.FLOAT())
+    parsed_stream = data_stream.map(lambda value: try_parse_float(value), output_type=Types.FLOAT())
+
+    filtered_stream = parsed_stream.filter(lambda value: value is not None)
 
     aggregated_stream = (
-        float_stream
-        .window_all(SlidingProcessingTimeWindows.of(Time.minutes(5), Time.seconds(30)))
+        filtered_stream
+        .window_all(SlidingEventTimeWindows.of(Time.minutes(5), Time.seconds(30)))
         .aggregate(MyAggregateFunction(), output_type=Types.MAP(Types.STRING(), Types.FLOAT()))
     )
 
