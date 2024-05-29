@@ -19,7 +19,6 @@ class MyAggregateFunction(AggregateFunction):
         }
 
     def add(self, value, accumulator):
-        print(value)
         v = float(value)
         accumulator['count'] += 1
         accumulator['sum'] += v
