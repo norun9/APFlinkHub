@@ -51,7 +51,7 @@ class MyAggregateFunction(AggregateFunction):
 
 
 def extract_entity_sensor_data_type(topic):
-    match = re.match(r'i483-sensors-([a-zA-Z0-9]+)-([A-Z0-9]+)-([a-z_]+)', topic)
+    match = re.match(r'i483-sensors-([a-zA-Z0-9]+)-([A-Z0-9]+)-([a-zA-Z0-9_]+)', topic)
     if match:
         return match.groups()
     else:
@@ -61,7 +61,7 @@ def extract_entity_sensor_data_type(topic):
 env = StreamExecutionEnvironment.get_execution_environment()
 
 
-def create_kafka_producer(topic):
+def create_kafka_producer(topic: str):
     return FlinkKafkaProducer(
         topic=topic,
         serialization_schema=SimpleStringSchema(),
@@ -82,13 +82,11 @@ topics = [
     'i483-sensors-s2410014-SCD41-temperature',
     'i483-sensors-s2410014-SCD41-co2',
     'i483-sensors-s2410014-SCD41-humidity',
-    # 'i483-sensors-team2-RPR0521RS-ambient_illumination',
-    # 'i483-sensors-team2-BH1750-illumination',
 ]
 
 
 for topic in topics:
-    # 返却されるデータにトピックの情報が存在しないのでトピック毎にコンシューマーを作成する
+    # 消費されたメッセージ内にトピック情報が存在しないのでトピック毎にConsumerを作成する
     kafka_consumer = FlinkKafkaConsumer(
         topics=topic,
         deserialization_schema=SimpleStringSchema(),
@@ -114,12 +112,16 @@ for topic in topics:
 
     entity, sensor, data_type = extract_entity_sensor_data_type(topic)
 
-    min_stream = aggregated_stream.map(lambda x: str(x['min']), output_type=Types.STRING())
-    max_stream = aggregated_stream.map(lambda x: str(x['max']), output_type=Types.STRING())
-    avg_stream = aggregated_stream.map(lambda x: str(x['avg']), output_type=Types.STRING())
+    min_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_min-{data_type}'
+    max_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_max-{data_type}'
+    avg_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_avg-{data_type}'
 
-    min_stream.add_sink(create_kafka_producer(f'i483-sensors-analytics-{entity}_{sensor}_min-{data_type}'))
-    max_stream.add_sink(create_kafka_producer(f'i483-sensors-analytics-{entity}_{sensor}_max-{data_type}'))
-    avg_stream.add_sink(create_kafka_producer(f'i483-sensors-analytics-{entity}_{sensor}_avg-{data_type}'))
+    min_stream = aggregated_stream.map(lambda x: (print(f"Topic: {min_topic}, Min Value: {x['min']}"), str(x['min']))[1], output_type=Types.STRING())
+    max_stream = aggregated_stream.map(lambda x: (print(f"Topic: {max_topic}, Max Value: {x['max']}"), str(x['max']))[1], output_type=Types.STRING())
+    avg_stream = aggregated_stream.map(lambda x: (print(f"Topic: {avg_topic}, Avg Value: {x['avg']}"), str(x['avg']))[1], output_type=Types.STRING())
+
+    min_stream.sink_to(create_kafka_producer(min_topic))
+    max_stream.sink_to(create_kafka_producer(max_topic))
+    avg_stream.sink_to(create_kafka_producer(avg_topic))
 
 env.execute()
