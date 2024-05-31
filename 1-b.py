@@ -1,12 +1,10 @@
 from pyflink.common.serialization import SimpleStringSchema
-from pyflink.datastream import StreamExecutionEnvironment, DataStream
+from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
-from pyflink.common.typeinfo import Types
 from pyflink.datastream.window import SlidingProcessingTimeWindows
-from pyflink.datastream.functions import AggregateFunction, ProcessAllWindowFunction
+from pyflink.datastream.functions import AggregateFunction
 from pyflink.common.time import Time
-import re
-from typing import Optional, Dict, Union, Tuple
+from typing import Optional, Dict, Union
 
 
 class MyAggregateFunction(AggregateFunction):
@@ -110,24 +108,15 @@ aggregated_stream = (
 )
 
 
-def extract_entity_sensor_data_type(topic):
-    match = re.match(r'i483-sensors-([a-zA-Z0-9]+)-([A-Z0-9-]+)-([a-z_]+)', topic)
-    if match:
-        return match.groups()
-    else:
-        pass
-
-
-def split_result(result):
+def print_result(result):
     topic = result['topic']
     min_val = str(result['min'])
     max_val = str(result['max'])
     avg_val = str(result['avg'])
     print(f'Topic: {topic}, Min Val: {min_val}, Max Val: {max_val}, Avg Val: {avg_val}')
-    return topic, min_val, max_val, avg_val
 
 
-aggregated_stream.map(split_result)
+aggregated_stream.map(print_result)
 
 
 env.execute()

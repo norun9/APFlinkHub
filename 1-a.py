@@ -2,8 +2,8 @@ from pyflink.common.serialization import SimpleStringSchema
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
 from pyflink.common.typeinfo import Types
-from pyflink.datastream.window import SlidingEventTimeWindows
-from pyflink.datastream.functions import AggregateFunction, ProcessAllWindowFunction
+from pyflink.datastream.window import SlidingProcessingTimeWindows
+from pyflink.datastream.functions import AggregateFunction
 from pyflink.common.time import Time
 import re
 
@@ -82,7 +82,8 @@ topics = [
     'i483-sensors-s2410014-SCD41-temperature',
     'i483-sensors-s2410014-SCD41-co2',
     'i483-sensors-s2410014-SCD41-humidity',
-    'i483-sensors-team2-RPR0521RS-ambient_illumination',
+    # 'i483-sensors-team2-RPR0521RS-ambient_illumination',
+    # 'i483-sensors-team2-BH1750-illumination',
 ]
 
 
@@ -103,11 +104,11 @@ for topic in topics:
 
     parsed_stream = data_stream.map(lambda value: try_parse_float(value), output_type=Types.FLOAT())
 
-    filtered_stream = parsed_stream.filter(lambda value: value is not None)
+    valid_data_stream = parsed_stream.filter(lambda value: value is not None)
 
     aggregated_stream = (
-        filtered_stream
-        .window_all(SlidingEventTimeWindows.of(Time.minutes(5), Time.seconds(30)))
+        valid_data_stream
+        .window_all(SlidingProcessingTimeWindows.of(Time.minutes(5), Time.seconds(30)))
         .aggregate(MyAggregateFunction(), output_type=Types.MAP(Types.STRING(), Types.FLOAT()))
     )
 
@@ -117,8 +118,8 @@ for topic in topics:
     max_stream = aggregated_stream.map(lambda x: str(x['max']), output_type=Types.STRING())
     avg_stream = aggregated_stream.map(lambda x: str(x['avg']), output_type=Types.STRING())
 
-    min_stream.add_sink(create_kafka_producer(f'i483-sensors-{entity}-analytics-{sensor}-min-{data_type}'))
-    max_stream.add_sink(create_kafka_producer(f'i483-sensors-{entity}-analytics-{sensor}-max-{data_type}'))
-    avg_stream.add_sink(create_kafka_producer(f'i483-sensors-{entity}-analytics-{sensor}-avg-{data_type}'))
+    min_stream.add_sink(create_kafka_producer(f'i483-sensors-analytics-{entity}_{sensor}_min-{data_type}'))
+    max_stream.add_sink(create_kafka_producer(f'i483-sensors-analytics-{entity}_{sensor}_max-{data_type}'))
+    avg_stream.add_sink(create_kafka_producer(f'i483-sensors-analytics-{entity}_{sensor}_avg-{data_type}'))
 
 env.execute()
