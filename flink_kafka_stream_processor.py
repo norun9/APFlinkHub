@@ -120,8 +120,8 @@ for topic in topics:
     max_stream = aggregated_stream.map(lambda x: (print(f"Topic: {max_topic}, Max Value: {x['max']}"), str(x['max']))[1], output_type=Types.STRING())
     avg_stream = aggregated_stream.map(lambda x: (print(f"Topic: {avg_topic}, Avg Value: {x['avg']}"), str(x['avg']))[1], output_type=Types.STRING())
 
-    min_stream.sink_to(create_kafka_producer(min_topic))
-    max_stream.sink_to(create_kafka_producer(max_topic))
-    avg_stream.sink_to(create_kafka_producer(avg_topic))
+    min_stream.add_sink(create_kafka_producer(min_topic))
+    max_stream.add_sink(create_kafka_producer(max_topic))
+    avg_stream.add_sink(create_kafka_producer(avg_topic))
 
 env.execute()
