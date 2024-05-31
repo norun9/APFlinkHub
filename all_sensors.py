@@ -15,6 +15,7 @@ from pyflink.common.typeinfo import Types
 
 BOOTSTRAP_SERVER = '150.65.230.59:9092'
 CONSUMER_TOPIC = 'i483-allsensors'
+SERIALIZATION_JAR_FILE_PATH = 'file://' + os.path.join(os.getcwd(), 'libs', 'JFlinkCustomSerializationSchema-1.0-SNAPSHOT-jar-with-dependencies.jar')
 
 
 class Tuple2SerializationSchema(SerializationSchema):
@@ -61,6 +62,23 @@ class MyAggregateFunction(AggregateFunction):
         )
 
 
+class KafkaSink:
+    def __init__(self, bootstrap_servers):
+        self.bootstrap_servers = bootstrap_servers
+
+    def create_schema(self, topic_selector):
+        return KafkaRecordSerializationSchemaBuilder() \
+            .set_key_serialization_schema(Tuple2SerializationSchema()) \
+            .set_value_serialization_schema(Tuple2SerializationSchema()) \
+            .set_topic_selector(topic_selector).build()
+
+    def create_sink(self, schema):
+        return KafkaSinkBuilder() \
+            .set_bootstrap_servers(self.bootstrap_servers) \
+            .set_record_serializer(schema) \
+            .build()
+
+
 def parse_message(message) -> Optional[Tuple[str, float]]:
     parts = message.split(',')
     topic, _, value = parts
@@ -80,33 +98,19 @@ def extract_entity_sensor_data_type(topic):
         raise ValueError(f"Topic {topic} does not match expected pattern")
 
 
-def avg_topic_selector(row):
-    topic, avg_val = row
-    entity, sensor, data_type = extract_entity_sensor_data_type(topic)
-    producer_topic = f"i483-sensors-s2410014-analytics-{entity}_{sensor}_avg-{data_type}"
-    print(f"Topic: {producer_topic} Value: {avg_val}")
-    return producer_topic
-
-
-def min_topic_selector(row):
-    topic, min_val = row
-    entity, sensor, data_type = extract_entity_sensor_data_type(topic)
-    producer_topic = f"i483-sensors-s2410014-analytics-{entity}_{sensor}_min-{data_type}"
-    print(f"Topic: {producer_topic} Value: {min_val}")
-    return producer_topic
-
-
-def max_topic_selector(row):
-    topic, max_val = row
-    entity, sensor, data_type = extract_entity_sensor_data_type(topic)
-    producer_topic = f"i483-sensors-s2410014-analytics-{entity}_{sensor}_max-{data_type}"
-    print(f"Topic: {producer_topic} Value: {max_val}")
-    return producer_topic
+def create_topic_selector(suffix):
+    def topic_selector(row):
+        topic, value = row
+        entity, sensor, data_type = extract_entity_sensor_data_type(topic)
+        producer_topic = f"i483-sensors-s2410014-analytics-{entity}_{sensor}_{suffix}-{data_type}"
+        print(f"Topic: {producer_topic} Value: {value}")
+        return producer_topic
+    return topic_selector
 
 
 env = StreamExecutionEnvironment.get_execution_environment()
-jar_file_path = 'file://' + os.path.join(os.getcwd(), 'libs', 'JFlinkCustomSerializationSchema-1.0-SNAPSHOT-jar-with-dependencies.jar')
-env.add_jars(jar_file_path)
+
+env.add_jars(SERIALIZATION_JAR_FILE_PATH)
 
 
 kafka_consumer = FlinkKafkaConsumer(
@@ -117,42 +121,26 @@ kafka_consumer = FlinkKafkaConsumer(
         'group.id': f'flink-consumer-{CONSUMER_TOPIC}'
     }
 )
+
 kafka_consumer.set_start_from_latest()
 data_stream = env.add_source(kafka_consumer)
 
-avg_val_schema = KafkaRecordSerializationSchemaBuilder() \
-    .set_key_serialization_schema(Tuple2SerializationSchema()) \
-    .set_value_serialization_schema(Tuple2SerializationSchema()) \
-    .set_topic_selector(avg_topic_selector).build()
+avg_topic_selector = create_topic_selector('avg')
+min_topic_selector = create_topic_selector('min')
+max_topic_selector = create_topic_selector('max')
 
-min_val_schema = KafkaRecordSerializationSchemaBuilder() \
-    .set_key_serialization_schema(Tuple2SerializationSchema()) \
-    .set_value_serialization_schema(Tuple2SerializationSchema()) \
-    .set_topic_selector(min_topic_selector).build()
+ks = KafkaSink(BOOTSTRAP_SERVER)
 
-max_val_schema = KafkaRecordSerializationSchemaBuilder() \
-    .set_key_serialization_schema(Tuple2SerializationSchema()) \
-    .set_value_serialization_schema(Tuple2SerializationSchema()) \
-    .set_topic_selector(max_topic_selector).build()
+avg_val_schema = ks.create_schema(avg_topic_selector)
+min_val_schema = ks.create_schema(min_topic_selector)
+max_val_schema = ks.create_schema(max_topic_selector)
 
-avg_val_sink = KafkaSinkBuilder() \
-    .set_bootstrap_servers(BOOTSTRAP_SERVER) \
-    .set_record_serializer(avg_val_schema) \
-    .build()
-
-min_val_sink = KafkaSinkBuilder() \
-    .set_bootstrap_servers(BOOTSTRAP_SERVER) \
-    .set_record_serializer(min_val_schema) \
-    .build()
-
-max_val_sink = KafkaSinkBuilder() \
-    .set_bootstrap_servers(BOOTSTRAP_SERVER) \
-    .set_record_serializer(max_val_schema) \
-    .build()
+avg_val_sink = ks.create_sink(avg_val_schema)
+min_val_sink = ks.create_sink(min_val_schema)
+max_val_sink = ks.create_sink(max_val_schema)
 
 parsed_stream = data_stream.map(parse_message).filter(lambda x: x is not None)
-keyed_stream = parsed_stream.key_by(lambda x: x[0])
-
+keyed_stream = parsed_stream.key_by(lambda x: x[0])  # key data streams by topic
 agg_stream = (
     keyed_stream
     .window(SlidingProcessingTimeWindows.of(Time.minutes(5), Time.seconds(30)))
