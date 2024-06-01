@@ -32,14 +32,12 @@ class MyAggregateFunction(AggregateFunction):
                 'avg': 0,
                 'min': float('inf'),
                 'max': float('-inf'),
-                'count': 0
             }
         else:
             return {
                 'avg': round(accumulator['sum'] / accumulator['count'], 2),
                 'min': round(accumulator['min'], 2),
                 'max': round(accumulator['max'], 2),
-                'count': accumulator['count']
             }
 
     def merge(self, acc_a, acc_b):
