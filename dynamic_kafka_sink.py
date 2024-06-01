@@ -102,7 +102,7 @@ def create_topic_selector(suffix):
     def topic_selector(row):
         topic, value = row
         entity, sensor, data_type = extract_entity_sensor_data_type(topic)
-        producer_topic = f"i483-sensors-s2410014-analytics-{entity}_{sensor}_{suffix}-{data_type}"
+        producer_topic = f"i483-sensors-s2410014-analytics-{entity}_{sensor}_{suffix}-{data_type}_v3"
         print(f"Topic: {producer_topic} Value: {value}")
         return producer_topic
     return topic_selector
