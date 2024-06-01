@@ -1,5 +1,2 @@
 apache-flink===1.19.0
 pyflink
-google
-google-cloud
-protobuf
