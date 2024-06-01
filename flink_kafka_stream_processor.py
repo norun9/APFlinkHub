@@ -35,9 +35,9 @@ class MyAggregateFunction(AggregateFunction):
             }
         else:
             return {
-                'avg': round(accumulator['sum'] / accumulator['count'], 2),
-                'min': round(accumulator['min'], 2),
-                'max': round(accumulator['max'], 2),
+                'avg': accumulator['sum'] / accumulator['count'],
+                'min': accumulator['min'],
+                'max': accumulator['max'],
             }
 
     def merge(self, acc_a, acc_b):
@@ -90,7 +90,7 @@ for topic in topics:
         deserialization_schema=SimpleStringSchema(),
         properties={
             'bootstrap.servers': '150.65.230.59:9092',
-            'group.id': f'flink-consumer-{topic}'
+            'group.id': f'flink-consumer-{topic}-v2'
         }
     )
 
@@ -110,13 +110,14 @@ for topic in topics:
 
     entity, sensor, data_type = extract_entity_sensor_data_type(topic)
 
-    min_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_min-{data_type}'
-    max_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_max-{data_type}'
-    avg_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_avg-{data_type}'
+    # _v2が付与されていないトピックに数値データ以外のデータを送信してしまいIoTDB(≒Grafana)が機能しなくなった(?)ので、_v2のsuffixを付与しました。
+    min_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_min-{data_type}_v2'
+    max_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_max-{data_type}_v2'
+    avg_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_avg-{data_type}_v2'
 
-    min_stream = aggregated_stream.map(lambda x: (print(f"Topic: {min_topic}, Min Value: {x['min']}"), str(x['min']))[1], output_type=Types.STRING())
-    max_stream = aggregated_stream.map(lambda x: (print(f"Topic: {max_topic}, Max Value: {x['max']}"), str(x['max']))[1], output_type=Types.STRING())
-    avg_stream = aggregated_stream.map(lambda x: (print(f"Topic: {avg_topic}, Avg Value: {x['avg']}"), str(x['avg']))[1], output_type=Types.STRING())
+    min_stream = aggregated_stream.map(lambda x: str(x['min']), output_type=Types.STRING())
+    max_stream = aggregated_stream.map(lambda x: str(x['max']), output_type=Types.STRING())
+    avg_stream = aggregated_stream.map(lambda x: str(x['avg']), output_type=Types.STRING())
 
     min_stream.add_sink(create_kafka_producer(min_topic))
     max_stream.add_sink(create_kafka_producer(max_topic))

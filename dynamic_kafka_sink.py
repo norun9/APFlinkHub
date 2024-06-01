@@ -47,9 +47,9 @@ class MyAggregateFunction(AggregateFunction):
         if accumulator[1] == 0:
             return ('', '', '', '')
         else:
-            avg = str(round(accumulator[2] / accumulator[1], 2))
-            min_val = str(round(accumulator[3], 2))
-            max_val = str(round(accumulator[4], 2))
+            avg = str(accumulator[2] / accumulator[1])
+            min_val = str(accumulator[3])
+            max_val = str(accumulator[4])
             return (accumulator[0], avg, min_val, max_val)
 
     def merge(self, acc_a: Tuple[str, int, float, float, float], acc_b: Tuple[str, int, float, float, float]) -> Tuple[str, int, float, float, float]:
