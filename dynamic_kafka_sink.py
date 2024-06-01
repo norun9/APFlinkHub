@@ -124,21 +124,8 @@ kafka_consumer = FlinkKafkaConsumer(
 )
 
 kafka_consumer.set_start_from_latest()
+
 data_stream = env.add_source(kafka_consumer)
-
-avg_topic_selector = create_topic_selector('avg')
-min_topic_selector = create_topic_selector('min')
-max_topic_selector = create_topic_selector('max')
-
-ks = KafkaSink(BOOTSTRAP_SERVER)
-
-avg_val_schema = ks.create_schema(avg_topic_selector)
-min_val_schema = ks.create_schema(min_topic_selector)
-max_val_schema = ks.create_schema(max_topic_selector)
-
-avg_val_sink = ks.create_sink(avg_val_schema)
-min_val_sink = ks.create_sink(min_val_schema)
-max_val_sink = ks.create_sink(max_val_schema)
 
 parsed_stream = data_stream.map(parse_message).filter(lambda x: x is not None)
 keyed_stream = parsed_stream.key_by(lambda x: x[0])  # key data streams by topic
@@ -154,6 +141,20 @@ agg_stream = (
 agg_avg_stream = agg_stream.map(lambda x: (x[0], x[1]), output_type=Types.TUPLE([Types.STRING(), Types.STRING()]))
 agg_min_stream = agg_stream.map(lambda x: (x[0], x[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING()]))
 agg_max_stream = agg_stream.map(lambda x: (x[0], x[3]), output_type=Types.TUPLE([Types.STRING(), Types.STRING()]))
+
+avg_topic_selector = create_topic_selector('avg')
+min_topic_selector = create_topic_selector('min')
+max_topic_selector = create_topic_selector('max')
+
+ks = KafkaSink(BOOTSTRAP_SERVER)
+
+avg_val_schema = ks.create_schema(avg_topic_selector)
+min_val_schema = ks.create_schema(min_topic_selector)
+max_val_schema = ks.create_schema(max_topic_selector)
+
+avg_val_sink = ks.create_sink(avg_val_schema)
+min_val_sink = ks.create_sink(min_val_schema)
+max_val_sink = ks.create_sink(max_val_schema)
 
 _ = agg_avg_stream.sink_to(avg_val_sink)
 _ = agg_min_stream.sink_to(min_val_sink)
