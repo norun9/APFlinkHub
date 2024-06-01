@@ -84,7 +84,6 @@ topics = [
 
 
 for topic in topics:
-    # 消費されたメッセージ内にトピック情報が存在しないのでトピック毎にConsumerを作成する
     kafka_consumer = FlinkKafkaConsumer(
         topics=topic,
         deserialization_schema=SimpleStringSchema(),
@@ -110,7 +109,6 @@ for topic in topics:
 
     entity, sensor, data_type = extract_entity_sensor_data_type(topic)
 
-    # _v2が付与されていないトピックに数値データ以外のデータを送信してしまいIoTDB(≒Grafana)が機能しなくなった(?)ので、_v2のsuffixを付与しました。
     min_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_min-{data_type}_v2'
     max_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_max-{data_type}_v2'
     avg_topic = f'i483-sensors-{entity}-analytics-{entity}_{sensor}_avg-{data_type}_v2'
