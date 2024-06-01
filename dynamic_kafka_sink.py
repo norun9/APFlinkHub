@@ -15,7 +15,8 @@ from pyflink.common.typeinfo import Types
 
 BOOTSTRAP_SERVER = '150.65.230.59:9092'
 CONSUMER_TOPIC = 'i483-allsensors'
-SERIALIZATION_JAR_FILE_PATH = 'file://' + os.path.join(os.getcwd(), 'libs', 'JFlinkCustomSerializationSchema-1.0-SNAPSHOT-jar-with-dependencies.jar')
+JAR_FILE_NAME = 'JFlinkCustomSerializationSchema-1.0-SNAPSHOT-jar-with-dependencies.jar'
+SERIALIZATION_JAR_FILE_PATH = 'file://' + os.path.join(os.getcwd(), 'libs', JAR_FILE_NAME)
 
 
 class Tuple2SerializationSchema(SerializationSchema):
