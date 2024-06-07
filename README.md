@@ -33,4 +33,4 @@ pip install -r requirements.txt
 
 These files should be placed in the directory:
 
-`.venv/bin/lib/python3.x/site-packages/pyflink/lib/`
+`.venv/lib/python3.x/site-packages/pyflink/lib/`
