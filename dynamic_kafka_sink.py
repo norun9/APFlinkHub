@@ -1,4 +1,3 @@
-from pyflink.common.serialization import SimpleStringSchema
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
 from pyflink.datastream.window import SlidingProcessingTimeWindows
@@ -6,12 +5,13 @@ from pyflink.datastream.functions import AggregateFunction
 from pyflink.common.time import Time
 from typing import Optional
 from pyflink.datastream.connectors.kafka import KafkaRecordSerializationSchemaBuilder, KafkaSinkBuilder
-from pyflink.common.serialization import SerializationSchema
+from pyflink.common.serialization import SerializationSchema, SimpleStringSchema
 from typing import Tuple
 from pyflink.java_gateway import get_gateway
 import os
 import re
 from pyflink.common.typeinfo import Types
+from pyflink.common import Configuration
 
 BOOTSTRAP_SERVER = '150.65.230.59:9092'
 CONSUMER_TOPIC = 'i483-allsensors'
@@ -69,7 +69,6 @@ class KafkaSink:
 
     def create_schema(self, topic_selector):
         return KafkaRecordSerializationSchemaBuilder() \
-            .set_key_serialization_schema(Tuple2SerializationSchema()) \
             .set_value_serialization_schema(Tuple2SerializationSchema()) \
             .set_topic_selector(topic_selector).build()
 
@@ -109,7 +108,8 @@ def create_topic_selector(suffix):
     return topic_selector
 
 
-env = StreamExecutionEnvironment.get_execution_environment()
+config = Configuration().set_string("python.execution-mode", "thread")
+env = StreamExecutionEnvironment.get_execution_environment(config)
 
 env.add_jars(SERIALIZATION_JAR_FILE_PATH)
 
